@@ -39,5 +39,5 @@ export const env = {
   ),
   r2PublicUrl:
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL ??
-    "https://assets.covered.rejisterjack.com",
+    "https://pub-6559559f305340a1b5b701d1a78dcc62.r2.dev",
 };
