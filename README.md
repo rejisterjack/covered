@@ -1,42 +1,42 @@
-# Next.js & HeroUI Template
+# Covered
 
-This is a template for creating applications using Next.js 16 (app directory) and HeroUI (v3).
+**Post your bill. Someone's got it.**
 
-[Try it on CodeSandbox](https://githubbox.com/heroui-inc/heroui/next-app-template)
+Mobile-first PWA where anyone posts a bill they cannot pay. Donors browse the feed, pay peer-to-peer outside the app, and land on a public leaderboard. Covered never touches money.
 
-## Technologies Used
+See [vision.md](./vision.md) for product intent and [docs/LAUNCH.md](./docs/LAUNCH.md) for go-live.
 
-- [Next.js 16](https://nextjs.org/docs/getting-started)
-- [HeroUI v3](https://heroui.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Tailwind Variants](https://tailwind-variants.org)
-- [TypeScript](https://www.typescriptlang.org/)
-- [next-themes](https://github.com/pacocoursey/next-themes)
+## Stack
 
-## How to Use
+- Next.js App Router + HeroUI
+- Neon / Postgres + Prisma
+- Better Auth (email magic link) + Resend
+- Cloudflare R2 uploads
+- Vercel deploy + hourly confirmation cron
+- PWA service worker + IndexedDB outbox
 
-### Use the template with create-next-app
-
-To create a new project based on this template using `create-next-app`, run the following command:
+## Local setup
 
 ```bash
-npx create-next-app -e https://github.com/heroui-inc/next-app-template
+bun install
+docker compose up -d   # Postgres on localhost:5434
+bunx prisma migrate deploy
+bun run dev
 ```
 
-### Install dependencies
+Do not seed demo data — the app starts empty.
 
-You can use one of them `npm`, `yarn`, `pnpm`, `bun`, Example using `npm`:
+Copy `.env.example` → `.env` and fill production secrets when deploying.
 
-```bash
-npm install
-```
+## Scripts
 
-### Run the development server
+| Command | Purpose |
+|---|---|
+| `bun run dev` | Local app |
+| `bun run test` | Unit tests |
+| `bun run test:e2e` | Playwright smoke |
+| `bun run build` | Production build |
 
-```bash
-npm run dev
-```
+## Money boundary
 
-## License
-
-Licensed under the [MIT license](https://github.com/heroui-inc/next-app-template/blob/main/LICENSE).
+Do not add payment processing, escrow, or payouts. Payment handles are revealed only after an authenticated cover intent.

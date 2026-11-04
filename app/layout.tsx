@@ -1,63 +1,72 @@
 import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
-import clsx from "clsx";
 
 import { Providers } from "./providers";
 
+import { AppShell } from "@/components/layout/app-shell";
+import { RegisterSW } from "@/components/pwa/register-sw";
 import { siteConfig } from "@/config/site";
-import { fontSans } from "@/config/fonts";
-import { Navbar } from "@/components/navbar";
+import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: {
-    default: siteConfig.name,
-    template: `%s - ${siteConfig.name}`,
+    default: siteConfig.fullName,
+    template: `%s / X`,
   },
   description: siteConfig.description,
+  applicationName: siteConfig.fullName,
+  metadataBase: new URL(siteConfig.url),
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Covered",
+  },
+  openGraph: {
+    title: siteConfig.fullName,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: "Covered from X",
+    type: "website",
+  },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
-  ],
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+  const initialUser = session?.user
+    ? {
+        name: session.user.name,
+        email: session.user.email,
+      }
+    : null;
+
   return (
-    <html suppressHydrationWarning lang="en">
-      <head />
-      <body
-        className={clsx(
-          "min-h-screen text-foreground bg-background font-sans antialiased",
-          fontSans.variable,
-        )}
-      >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col h-screen">
-            <Navbar />
-            <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
-              {children}
-            </main>
-            <footer className="w-full flex items-center justify-center py-3">
-              <a
-                className="flex items-center gap-1 text-current no-underline"
-                href="https://heroui.com?utm_source=next-app-template"
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <span className="text-muted">Powered by</span>
-                <p className="text-accent">HeroUI</p>
-              </a>
-            </footer>
-          </div>
+    <html suppressHydrationWarning className="dark" lang="en">
+      <body className="min-h-screen bg-black font-sans text-[#e7e9ea] antialiased">
+        <Providers
+          themeProps={{
+            attribute: "class",
+            defaultTheme: "dark",
+            forcedTheme: "dark",
+          }}
+        >
+          <AppShell initialUser={initialUser}>{children}</AppShell>
+          <RegisterSW />
         </Providers>
       </body>
     </html>

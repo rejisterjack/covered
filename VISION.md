@@ -32,30 +32,31 @@ On the other side, wealthy people and companies want to give — but writing a c
 
 ### Posting a bill
 
-1. Sign up, verify phone number
+1. Sign up via email magic link (email verified)
 2. Upload a photo of the bill or invoice
-3. Enter amount, pick a category (medical / rent / utilities / education / food / other)
-4. Write one line — the story behind it
-5. Add your UPI ID, payment handle, or QR code image
-6. Bill goes live on the feed
+3. Enter **structured bill facts**: biller name, reference/account/invoice number, amount (max ₹2,00,000), due date (±180 days), category
+4. Optional one-line note — not what makes the post valid
+5. Add the **payee** for this bill (UPI `name@bank`, handle, or QR) — who the donor pays, tied to that bill
+6. Gates: one active bill per poster; no second live copy of the same biller + reference
+7. Checks pass → bill goes live on the feed (no admin pre-review)
 
 ### Covering a bill
 
-1. Browse the feed — filter by category, amount, or location
+1. Browse the feed — filter by category; cards show biller, amount, due, city
 2. Tap a bill that moves you
-3. Tap **"I'll cover this"** — see the poster's payment details
-4. Pay directly via GPay, PhonePe, Paytm, Venmo, or any app you use
-5. Come back, tap **"I paid this"** — optionally attach a payment screenshot
+3. Tap **Cover** — see that bill's payee details
+4. Pay that payee directly via GPay, PhonePe, Paytm, Venmo, or any app you use
+5. Upload a **payment screenshot** (required), then tap **"I paid this"**
 6. Poster gets notified, confirms receipt
 7. Bill marked **Covered ✓** — donor's name appears on the leaderboard
 
 ### Trust flow
 
-- Donor marks paid → poster has 24 hours to confirm
+- Donor marks paid (with screenshot) → poster has 24 hours to confirm
 - Poster confirms → bill status becomes Covered, leaderboard updates
-- Poster does not confirm → bill stays "Pending confirmation", donor can flag
-- Any user can flag a suspicious bill before it is paid
-- Repeated unconfirmed bills from one poster trigger a review
+- Poster does not confirm → bill reopens; repeated misses can lock posting
+- Any user can flag a suspicious bill; admin can reopen, soft-delete, or lock
+- Leaderboard credit only after poster confirmation
 
 ---
 
@@ -106,7 +107,7 @@ Single Next.js 14 App Router application. One repo. One deployment. Works in eve
 | PWA | `@ducanh2912/next-pwa` (Serwist) | Service worker, offline support, home screen install |
 | Database | NeonDB (Postgres) | Serverless, Vercel-integrated, free tier |
 | ORM | Prisma | Type-safe, schema-first |
-| Auth | Better Auth | Self-hosted, no per-user pricing, Next.js native |
+| Auth | Better Auth + Resend | Email magic link, self-hosted, Next.js native |
 | File storage | Cloudflare R2 | Zero egress fees, S3-compatible, Cloudflare CDN |
 | Deployment | Vercel | Free tier covers launch |
 
@@ -114,7 +115,7 @@ Single Next.js 14 App Router application. One repo. One deployment. Works in eve
 
 ```
 users
-  id, name, avatar_url, phone_verified, upi_id,
+  id, name, avatar_url, email_verified, upi_id,
   total_given, bills_covered, bills_posted, created_at
 
 bills
@@ -149,6 +150,7 @@ vercel deploy
 Environment variables needed:
 - `DATABASE_URL` — NeonDB connection string
 - `BETTER_AUTH_SECRET` — auth signing secret
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — magic link delivery
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`
 - `NEXT_PUBLIC_R2_PUBLIC_URL` — Cloudflare CDN URL for bill photos
 
@@ -159,7 +161,7 @@ Asset CDN: `assets.covered.rejisterjack.com` (R2 public bucket)
 
 ## MVP Scope
 
-- [ ] Auth — phone verification via Better Auth
+- [ ] Auth — email magic link via Better Auth + Resend
 - [ ] Post a bill — photo upload to R2, amount, category, story, payment handle
 - [ ] Feed — new bills, filterable by category
 - [ ] Bill detail page — full story, payment details reveal on tap
