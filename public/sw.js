@@ -1,17 +1,31 @@
-const CACHE = "covered-v1";
-const PRECACHE = ["/", "/leaderboard", "/manifest.webmanifest"];
+const CACHE = "covered-v5";
+const PRECACHE = [
+  "/",
+  "/install",
+  "/app",
+  "/leaderboard",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -40,6 +54,8 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(request);
         if (cached) return cached;
         if (isNavigation) {
+          const app = await caches.match("/app");
+          if (app) return app;
           const home = await caches.match("/");
           if (home) return home;
         }
@@ -50,7 +66,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  let payload = { title: "Covered", body: "You have an update", url: "/" };
+  let payload = { title: "Covered", body: "You have an update", url: "/app" };
   try {
     payload = { ...payload, ...event.data.json() };
   } catch {
@@ -67,6 +83,6 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  const url = event.notification.data?.url || "/app";
   event.waitUntil(clients.openWindow(url));
 });

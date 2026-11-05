@@ -1,14 +1,24 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+
+import { isMarketingPath } from "@/components/layout/nav-config";
 
 export function RegisterSW() {
+  const pathname = usePathname();
+
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
     void navigator.serviceWorker.register("/sw.js").catch(() => {
       // SW optional in dev
     });
+  }, []);
+
+  useEffect(() => {
+    if (isMarketingPath(pathname)) return;
+    if (!("serviceWorker" in navigator)) return;
 
     async function subscribePush() {
       if (!("PushManager" in window)) return;
@@ -42,7 +52,7 @@ export function RegisterSW() {
     }
 
     void subscribePush();
-  }, []);
+  }, [pathname]);
 
   return null;
 }

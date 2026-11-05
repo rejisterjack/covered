@@ -22,7 +22,7 @@ export function SiteHeader({
   return (
     <header className="sticky top-0 z-30 border-b border-[#2f3336] bg-black/85 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[880px] items-center gap-2 px-4 sm:gap-3">
-        <BrandLockup className="min-w-0 shrink" size="sm" />
+        <BrandLockup className="min-w-0 shrink" href="/app" size="sm" />
 
         <nav className="ml-1 hidden items-center gap-0.5 md:flex">
           {PRIMARY_NAV.filter((item) => item.href !== "/bills/new").map(

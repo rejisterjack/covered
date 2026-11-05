@@ -28,10 +28,29 @@ export const metadata: Metadata = {
     url: siteConfig.url,
     siteName: "Covered from X",
     type: "website",
+    images: [
+      {
+        url: "/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "Covered",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: siteConfig.fullName,
+    description: siteConfig.description,
+    images: ["/icons/icon-512.png"],
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
 

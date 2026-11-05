@@ -105,7 +105,7 @@ export function PostBillForm({
 
     if (result.queued) {
       setError(null);
-      router.push("/?queued=1");
+      router.push("/app?queued=1");
 
       return;
     }

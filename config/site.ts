@@ -7,7 +7,7 @@ export const siteConfig = {
   tagline: "Covered from X — post a bill. Someone's got it.",
   url: "https://covered.rejisterjack.com",
   navItems: [
-    { label: "Home", href: "/" },
+    { label: "Home", href: "/app" },
     { label: "Leaderboard", href: "/leaderboard" },
     { label: "Post", href: "/bills/new" },
     { label: "Profile", href: "/profile" },
@@ -15,6 +15,8 @@ export const siteConfig = {
   links: {
     terms: "/terms",
     privacy: "/privacy",
+    install: "/install",
+    app: "/app",
     x: "https://x.com",
   },
 };

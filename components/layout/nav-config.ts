@@ -7,10 +7,10 @@ export type NavItem = {
 
 export const PRIMARY_NAV: NavItem[] = [
   {
-    href: "/",
+    href: "/app",
     label: "Home",
     shortLabel: "Home",
-    match: (p) => p === "/",
+    match: (p) => p === "/app" || p.startsWith("/bills"),
   },
   {
     href: "/leaderboard",
@@ -31,3 +31,9 @@ export const PRIMARY_NAV: NavItem[] = [
     match: (p) => p.startsWith("/profile") || p.startsWith("/u/"),
   },
 ];
+
+export const MARKETING_PATHS = new Set(["/", "/install"]);
+
+export function isMarketingPath(pathname: string) {
+  return MARKETING_PATHS.has(pathname);
+}

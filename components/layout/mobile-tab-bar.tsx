@@ -16,7 +16,7 @@ import {
 
 function iconFor(href: string, active: boolean) {
   switch (href) {
-    case "/":
+    case "/app":
       return active ? (
         <HomeFilledIcon size={24} />
       ) : (

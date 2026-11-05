@@ -1,8 +1,24 @@
 import { expect, test } from "@playwright/test";
 
-test("home feed loads and navigation works", async ({ page }) => {
+test("marketing landing and install page load", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Covered" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Post your bill/i }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open the app" })).toBeVisible();
+
+  await page.goto("/install");
+  await expect(
+    page.getByRole("heading", { name: "Install Covered" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Install Covered|Install on iPhone/ }),
+  ).toBeVisible();
+});
+
+test("app feed loads and navigation works", async ({ page }) => {
+  await page.goto("/app");
+  await expect(page.getByRole("heading", { name: "Bills" })).toBeVisible();
   await expect(page.getByRole("button", { name: "New" })).toBeVisible();
 
   await page.getByRole("link", { name: "Ranks" }).click();
