@@ -16,7 +16,7 @@ export async function gateAdminMutation(request: Request) {
     return { error: forbidden() };
   }
 
-  const rl = rateLimit(
+  const rl = await rateLimit(
     clientKey(request, `admin:${admin.user.id}`),
     60,
     60_000,

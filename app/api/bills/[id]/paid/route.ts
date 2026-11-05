@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const { id } = await params;
-  const rl = rateLimit(
+  const rl = await rateLimit(
     clientKey(request, `paid:${session.user.id}`),
     10,
     60_000,

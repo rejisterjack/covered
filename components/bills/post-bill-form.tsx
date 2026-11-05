@@ -6,7 +6,7 @@ import clsx from "clsx";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { CATEGORIES, PAYMENT_TYPES } from "@/lib/constants";
-import { apiOrQueue } from "@/lib/offline/outbox";
+import { apiOrQueue, enqueueMutation, saveLocalFile } from "@/lib/offline/outbox";
 import { uploadFile } from "@/lib/upload-client";
 
 type Step = "photo" | "details" | "payment";
@@ -37,6 +37,8 @@ export function PostBillForm({
   const [paymentHandle, setPaymentHandle] = useState(defaultUpi ?? "");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | undefined>();
   const [locationCity, setLocationCity] = useState(defaultCity ?? "");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,12 +47,21 @@ export function PostBillForm({
     setLoading(true);
     setError(null);
     try {
+      if (!navigator.onLine) throw new Error("offline");
       const url = await uploadFile(file, "bill");
 
       setImageUrl(url);
       setStep("details");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+    } catch {
+      try {
+        const id = await saveLocalFile(file, "bill");
+
+        setImageUrl(`local:${id}`);
+        setStep("details");
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -60,11 +71,18 @@ export function PostBillForm({
     if (!file) return;
     setLoading(true);
     try {
+      if (!navigator.onLine) throw new Error("offline");
       const url = await uploadFile(file, "qr");
 
       setPaymentQrUrl(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "QR upload failed");
+    } catch {
+      try {
+        const id = await saveLocalFile(file, "qr");
+
+        setPaymentQrUrl(`local:${id}`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "QR upload failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -93,9 +111,41 @@ export function PostBillForm({
       imageUrl,
       paymentHandle: paymentHandle.trim(),
       paymentType,
-      paymentQrUrl,
+      paymentQrUrl: paymentQrUrl?.startsWith("local:") ? undefined : paymentQrUrl,
       locationCity: locationCity || null,
+      latitude,
+      longitude,
     };
+    const files = [
+      imageUrl.startsWith("local:")
+        ? {
+            field: "imageUrl",
+            fileId: imageUrl.slice("local:".length),
+            purpose: "bill" as const,
+          }
+        : null,
+      paymentQrUrl?.startsWith("local:")
+        ? {
+            field: "paymentQrUrl",
+            fileId: paymentQrUrl.slice("local:".length),
+            purpose: "qr" as const,
+          }
+        : null,
+    ].filter((file) => file !== null);
+
+    if (!navigator.onLine || files.length > 0) {
+      await enqueueMutation({
+        url: "/api/bills",
+        json: {
+          ...payload,
+          imageUrl: imageUrl.startsWith("local:") ? "https://pending.local/bill" : imageUrl,
+        },
+        files,
+      });
+      router.push("/app?queued=1");
+
+      return;
+    }
 
     const result = await apiOrQueue("/api/bills", {
       method: "POST",
@@ -247,6 +297,27 @@ export function PostBillForm({
                   value={locationCity}
                   onChange={(e) => setLocationCity(e.target.value)}
                 />
+                <button
+                  className="text-[13px] font-bold text-[#1d9bf0]"
+                  type="button"
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      setError("This browser has no location");
+
+                      return;
+                    }
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setLatitude(pos.coords.latitude);
+                        setLongitude(pos.coords.longitude);
+                        setError(null);
+                      },
+                      () => setError("Location permission was denied"),
+                    );
+                  }}
+                >
+                  {latitude != null ? "Location attached" : "Attach location for nearby search"}
+                </button>
               </label>
             </div>
             <label className="block space-y-2 text-[13px] text-[#71767b]">

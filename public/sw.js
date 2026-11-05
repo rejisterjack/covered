@@ -1,9 +1,10 @@
-const CACHE = "covered-v5";
+const CACHE = "covered-v6";
 const PRECACHE = [
   "/",
   "/install",
   "/app",
   "/leaderboard",
+  "/embed/leaderboard",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

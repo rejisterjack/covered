@@ -5,7 +5,9 @@ import {
   PaymentType,
   Prisma,
 } from "@prisma/client";
-import { addHours, startOfMonth, subHours } from "date-fns";
+import { addHours, subHours } from "date-fns";
+
+import { haversineKm } from "@/lib/rank";
 
 import { isPostingPaused } from "@/lib/admin";
 import {
@@ -32,7 +34,9 @@ export async function listBills(input: {
   category?: BillCategory;
   take?: number;
   cursor?: string;
+  near?: { lat: number; lng: number; radiusKm: number };
 }) {
+  await expireStaleConfirmations();
   const take = input.take ?? 20;
   const where: Prisma.BillWhereInput = { deletedAt: null };
 
@@ -43,20 +47,24 @@ export async function listBills(input: {
   if (input.tab === "new") {
     where.status = BillStatus.open;
 
-    return prisma.bill.findMany({
+    const fresh = await prisma.bill.findMany({
       where,
       include: { poster: { select: posterSelect } },
       orderBy: { createdAt: "desc" },
-      take,
-      ...(input.cursor ? { skip: 1, cursor: { id: input.cursor } } : {}),
+      take: input.near ? 200 : take,
+      ...(input.near || !input.cursor
+        ? {}
+        : { skip: 1, cursor: { id: input.cursor } }),
     });
+
+    return withinRadius(fresh, input.near, take);
   }
 
   if (input.tab === "hot") {
     where.status = BillStatus.open;
     const since = subHours(new Date(), 24);
 
-    return prisma.bill.findMany({
+    const hot = await prisma.bill.findMany({
       where: {
         ...where,
         OR: [
@@ -66,22 +74,46 @@ export async function listBills(input: {
       },
       include: { poster: { select: posterSelect } },
       orderBy: [{ coverIntentCount: "desc" }, { viewsCount: "desc" }],
-      take,
+      take: input.near ? 200 : take,
     });
+
+    return withinRadius(hot, input.near, take);
   }
 
   where.status = BillStatus.covered;
   where.coveredAt = { gte: subHours(new Date(), 1) };
 
-  return prisma.bill.findMany({
+  const covered = await prisma.bill.findMany({
     where,
     include: {
       poster: { select: posterSelect },
       coveredBy: { select: posterSelect },
     },
     orderBy: { coveredAt: "desc" },
-    take,
+    take: input.near ? 200 : take,
   });
+
+  return withinRadius(covered, input.near, take);
+}
+
+function withinRadius<T extends { latitude: number | null; longitude: number | null }>(
+  bills: T[],
+  near: { lat: number; lng: number; radiusKm: number } | undefined,
+  take: number,
+) {
+  if (!near) return bills.slice(0, take);
+
+  return bills
+    .filter(
+      (bill) =>
+        bill.latitude != null &&
+        bill.longitude != null &&
+        haversineKm(
+          { lat: near.lat, lng: near.lng },
+          { lat: bill.latitude, lng: bill.longitude },
+        ) <= near.radiusKm,
+    )
+    .slice(0, take);
 }
 
 export async function createBill(input: {
@@ -97,6 +129,8 @@ export async function createBill(input: {
   paymentType: PaymentType;
   paymentQrUrl?: string;
   locationCity?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }) {
   if (await isPostingPaused()) {
     throw new Error("Posting paused");
@@ -179,6 +213,8 @@ export async function createBill(input: {
         paymentType: input.paymentType,
         paymentQrUrl: input.paymentQrUrl,
         locationCity: input.locationCity ?? poster.city,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
       },
       include: { poster: { select: posterSelect } },
     });
@@ -193,6 +229,7 @@ export async function createBill(input: {
 }
 
 export async function getBillById(id: string) {
+  await expireStaleConfirmations();
   const bill = await prisma.bill.findUnique({
     where: { id },
     include: {
@@ -442,15 +479,18 @@ export async function expireStaleConfirmations() {
   let processed = 0;
 
   for (const bill of stale) {
-    await prisma.$transaction(async (tx) => {
-      await tx.bill.update({
-        where: { id: bill.id },
-        data: {
-          status: BillStatus.open,
-          coveredById: null,
-        },
-      });
+    const reopened = await prisma.bill.updateMany({
+      where: {
+        id: bill.id,
+        status: BillStatus.pending_confirmation,
+      },
+      data: {
+        status: BillStatus.open,
+        coveredById: null,
+      },
     });
+
+    if (reopened.count !== 1) continue;
 
     const donorId = bill.payments[0]?.donorId;
 
@@ -491,66 +531,4 @@ export async function expireStaleConfirmations() {
   return { processed };
 }
 
-export async function getLeaderboard(period: "all" | "month") {
-  if (period === "all") {
-    const users = await prisma.user.findMany({
-      where: { billsCovered: { gt: 0 } },
-      orderBy: [{ totalGiven: "desc" }, { billsCovered: "desc" }],
-      take: 50,
-      select: {
-        id: true,
-        name: true,
-        image: true,
-        city: true,
-        isVerifiedPublic: true,
-        totalGiven: true,
-        billsCovered: true,
-        isAnonymousDefault: true,
-      },
-    });
-
-    return users;
-  }
-
-  const monthStart = startOfMonth(new Date());
-  const rows = await prisma.payment.groupBy({
-    by: ["donorId"],
-    where: {
-      posterConfirmedAt: { gte: monthStart },
-    },
-    _sum: { amount: true },
-    _count: { _all: true },
-    orderBy: { _sum: { amount: "desc" } },
-    take: 50,
-  });
-
-  const donors = await prisma.user.findMany({
-    where: { id: { in: rows.map((r) => r.donorId) } },
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      city: true,
-      isVerifiedPublic: true,
-      totalGiven: true,
-      billsCovered: true,
-      isAnonymousDefault: true,
-    },
-  });
-
-  const byId = new Map(donors.map((d) => [d.id, d]));
-
-  return rows
-    .map((row) => {
-      const user = byId.get(row.donorId);
-
-      if (!user) return null;
-
-      return {
-        ...user,
-        periodTotal: Number(row._sum.amount ?? 0),
-        periodCount: row._count._all,
-      };
-    })
-    .filter(Boolean);
-}
+export { getPublicLeaderboard as getLeaderboard } from "@/lib/leaderboard";

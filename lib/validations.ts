@@ -32,6 +32,8 @@ export const createBillSchema = z
     paymentType: z.nativeEnum(PaymentType),
     paymentQrUrl: mediaUrl.optional().nullable(),
     locationCity: z.string().trim().min(2).max(80).optional().nullable(),
+    latitude: z.number().gte(-90).lte(90).optional().nullable(),
+    longitude: z.number().gte(-180).lte(180).optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (!isAmountAllowed(data.amount)) {
@@ -88,10 +90,14 @@ export const profileUpdateSchema = z.object({
   city: z.string().trim().min(2).max(80).optional().nullable(),
   upiId: z.string().trim().min(3).max(120).optional().nullable(),
   isAnonymousDefault: z.boolean().optional(),
+  verificationRequest: z.literal(true).optional(),
 });
 
 export const feedQuerySchema = z.object({
   tab: z.enum(["new", "hot", "covered"]).default("new"),
   category: z.nativeEnum(BillCategory).optional(),
   cursor: z.string().optional(),
+  lat: z.coerce.number().gte(-90).lte(90).optional(),
+  lng: z.coerce.number().gte(-180).lte(180).optional(),
+  radiusKm: z.coerce.number().min(1).max(200).optional(),
 });

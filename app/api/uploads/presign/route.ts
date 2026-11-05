@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     return unauthorized();
   }
 
-  const rl = rateLimit(
+  const rl = await rateLimit(
     clientKey(request, `upload:${session.user.id}`),
     20,
     60_000,

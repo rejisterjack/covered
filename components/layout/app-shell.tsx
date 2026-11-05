@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
-import { isMarketingPath } from "@/components/layout/nav-config";
+import { isBarePath, isMarketingPath } from "@/components/layout/nav-config";
 import { SiteHeader } from "@/components/layout/site-header";
 
 export function AppShell({
@@ -17,6 +17,10 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const marketing = isMarketingPath(pathname);
+
+  if (isBarePath(pathname)) {
+    return <div className="min-h-dvh bg-black text-[#e7e9ea]">{children}</div>;
+  }
 
   if (marketing) {
     return (

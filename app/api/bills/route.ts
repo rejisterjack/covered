@@ -13,16 +13,31 @@ export async function GET(request: Request) {
     tab: searchParams.get("tab") ?? "new",
     category: searchParams.get("category") ?? undefined,
     cursor: searchParams.get("cursor") ?? undefined,
+    lat: searchParams.get("lat") ?? undefined,
+    lng: searchParams.get("lng") ?? undefined,
+    radiusKm: searchParams.get("radiusKm") ?? undefined,
   });
 
   if (!parsed.success) {
     return jsonError("Invalid query");
   }
 
+  const near =
+    parsed.data.lat != null &&
+    parsed.data.lng != null &&
+    parsed.data.radiusKm != null
+      ? {
+          lat: parsed.data.lat,
+          lng: parsed.data.lng,
+          radiusKm: parsed.data.radiusKm,
+        }
+      : undefined;
+
   const bills = await listBills({
     tab: parsed.data.tab as FeedTab,
     category: parsed.data.category as BillCategory | undefined,
     cursor: parsed.data.cursor,
+    near,
   });
 
   return jsonOk({
@@ -37,7 +52,7 @@ export async function POST(request: Request) {
     return unauthorized();
   }
 
-  const rl = rateLimit(
+  const rl = await rateLimit(
     clientKey(request, `post:${session.user.id}`),
     5,
     60_000,
@@ -68,6 +83,8 @@ export async function POST(request: Request) {
       paymentType: parsed.data.paymentType,
       paymentQrUrl: parsed.data.paymentQrUrl ?? undefined,
       locationCity: parsed.data.locationCity ?? undefined,
+      latitude: parsed.data.latitude,
+      longitude: parsed.data.longitude,
     });
 
     return jsonOk({ bill: serializeBillCard(bill) }, { status: 201 });

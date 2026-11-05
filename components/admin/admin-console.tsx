@@ -74,6 +74,9 @@ export function AdminConsole() {
     }>
   >([]);
   const [userQuery, setUserQuery] = useState("");
+  const [requests, setRequests] = useState<
+    Array<{ id: string; name: string; email: string; city: string | null }>
+  >([]);
   const [users, setUsers] = useState<
     Array<{
       id: string;
@@ -135,6 +138,10 @@ export function AdminConsole() {
           const data = await adminFetch("/api/admin/settings");
 
           setPausePosting(data.settings.pausePosting);
+        } else if (target === "users") {
+          const data = await adminFetch("/api/admin/users?requests=1");
+
+          setRequests(data.requests ?? []);
         } else if (target === "audit") {
           const data = await adminFetch("/api/admin/audit");
 
@@ -366,6 +373,34 @@ export function AdminConsole() {
 
         {section === "users" ? (
           <div className="space-y-4">
+            {requests.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm font-bold text-[#e7e9ea]">
+                  Verification requests
+                </p>
+                <ul className="divide-y divide-[#2f3336]">
+                  {requests.map((user) => (
+                    <li key={user.id} className="flex items-center justify-between gap-3 py-3">
+                      <p className="text-sm text-[#e7e9ea]">
+                        {user.name} · {user.email}
+                        {user.city ? ` · ${user.city}` : ""}
+                      </p>
+                      <ActionButton
+                        label="Mark verified"
+                        onClick={() =>
+                          void runAction(
+                            `/api/admin/users/${user.id}/verify`,
+                            "Marked verified",
+                          )
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="text-sm text-[#71767b]">No verification requests.</p>
+            )}
             <form
               className="flex gap-2"
               onSubmit={(e) => {

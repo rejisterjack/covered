@@ -10,17 +10,32 @@ import { formatInr } from "@/lib/constants";
 type Entry = {
   rank: number;
   id: string;
+  donorId: string;
   name: string;
   city?: string | null;
   isVerifiedPublic: boolean;
+  anonymous?: boolean;
   totalGiven: number;
   billsCovered: number;
+  streak?: number;
+  badge?: 7 | 14 | 30 | null;
 };
 
-export function LeaderboardClient() {
+type Champion = {
+  category: string;
+  name: string;
+  anonymous: boolean;
+  totalGiven: number;
+  billsCovered: number;
+  isVerifiedPublic: boolean;
+};
+
+export function LeaderboardClient({ embed = false }: { embed?: boolean }) {
   const [period, setPeriod] = useState<"all" | "month">("all");
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [champions, setChampions] = useState<Champion[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -30,16 +45,27 @@ export function LeaderboardClient() {
 
         if (!res.ok) throw new Error(data.error ?? "Failed");
         setEntries(data.entries ?? []);
+        setChampions(data.champions ?? []);
         localStorage.setItem(
           `covered:leaderboard:${period}`,
-          JSON.stringify(data.entries ?? []),
+          JSON.stringify({
+            entries: data.entries ?? [],
+            champions: data.champions ?? [],
+          }),
         );
         setError(null);
       } catch {
         const cached = localStorage.getItem(`covered:leaderboard:${period}`);
 
         if (cached) {
-          setEntries(JSON.parse(cached));
+          const parsed = JSON.parse(cached);
+
+          if (Array.isArray(parsed)) {
+            setEntries(parsed);
+          } else {
+            setEntries(parsed.entries ?? []);
+            setChampions(parsed.champions ?? []);
+          }
           setError("Offline — showing cached leaderboard.");
         } else {
           setError("We’ll sync when you’re back.");
@@ -50,10 +76,19 @@ export function LeaderboardClient() {
 
   return (
     <div>
-      <PageHeader
-        title="Leaderboard"
-        subtitle="People who covered bills — ranked by giving"
-      />
+      {embed ? (
+        <div className="border-b border-[#2f3336] px-4 py-4">
+          <p className="text-[15px] font-extrabold">Covered leaderboard</p>
+          <a className="text-[13px] font-bold text-[#1d9bf0]" href="/leaderboard">
+            Open Covered
+          </a>
+        </div>
+      ) : (
+        <PageHeader
+          title="Leaderboard"
+          subtitle="People who covered bills — ranked by giving"
+        />
+      )}
 
       <div className="sticky top-14 z-20 flex border-b border-[#2f3336] bg-black/85 backdrop-blur-md">
         {(
@@ -81,6 +116,55 @@ export function LeaderboardClient() {
         ))}
       </div>
 
+      {!embed ? (
+        <div className="flex items-center justify-between gap-3 border-b border-[#2f3336] px-4 py-2.5">
+          <p className="text-[13px] text-[#71767b]">
+            Share this board
+          </p>
+          <button
+            className="text-[13px] font-bold text-[#1d9bf0]"
+            type="button"
+            onClick={() => {
+              const url = `${window.location.origin}/embed/leaderboard`;
+
+              if (navigator.share) {
+                void navigator.share({ title: "Covered leaderboard", url });
+
+                return;
+              }
+              void navigator.clipboard.writeText(url).then(() => {
+                setCopied(true);
+              });
+            }}
+          >
+            {copied ? "Link copied" : "Share"}
+          </button>
+        </div>
+      ) : null}
+
+      {champions.length > 0 ? (
+        <div className="border-b border-[#2f3336] px-4 py-3">
+          <p className="text-[13px] font-bold text-[#71767b]">Category champions</p>
+          <ul className="mt-2 space-y-1.5">
+            {champions.map((champion) => (
+              <li
+                key={champion.category}
+                className="flex items-center justify-between gap-3 text-[14px]"
+              >
+                <span className="capitalize text-[#e7e9ea]">
+                  {champion.category}
+                </span>
+                <span className="truncate text-[#71767b]">
+                  {champion.name}
+                  {champion.isVerifiedPublic ? " ✓" : ""} ·{" "}
+                  {formatInr(champion.totalGiven)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {error ? (
         <p className="border-b border-[#2f3336] px-4 py-2.5 text-[13px] text-[#1d9bf0]">
           {error}
@@ -100,17 +184,22 @@ export function LeaderboardClient() {
               {(entry.name[0] ?? "?").toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <Link
-                className="block truncate font-bold hover:underline"
-                href={`/u/${entry.id}`}
-              >
-                {entry.name}
-                {entry.isVerifiedPublic ? " ✓" : ""}
-              </Link>
+              {entry.anonymous ? (
+                <p className="truncate font-bold">{entry.name}</p>
+              ) : (
+                <Link
+                  className="block truncate font-bold hover:underline"
+                  href={`/u/${entry.donorId}`}
+                >
+                  {entry.name}
+                  {entry.isVerifiedPublic ? " ✓" : ""}
+                </Link>
+              )}
               <p className="truncate text-[13px] text-[#71767b]">
                 {entry.billsCovered}{" "}
                 {entry.billsCovered === 1 ? "bill" : "bills"}
                 {entry.city ? ` · ${entry.city}` : ""}
+                {entry.badge ? ` · ${entry.badge}-day streak` : ""}
               </p>
             </div>
             <span className="shrink-0 text-[14px] font-bold tabular-nums text-[#e7e9ea] sm:text-[15px]">

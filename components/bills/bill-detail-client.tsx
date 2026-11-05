@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { FLAG_REASONS, formatInr } from "@/lib/constants";
-import { apiOrQueue } from "@/lib/offline/outbox";
+import { apiOrQueue, enqueueMutation, saveLocalFile } from "@/lib/offline/outbox";
 import { uploadFile } from "@/lib/upload-client";
 
 type BillDetail = {
@@ -91,11 +91,19 @@ export function BillDetailClient({
     setLoading(true);
     setError(null);
     try {
+      if (!navigator.onLine) throw new Error("offline");
       const url = await uploadFile(file, "screenshot");
 
       setScreenshotUrl(url);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Screenshot upload failed");
+    } catch {
+      try {
+        const id = await saveLocalFile(file, "screenshot");
+
+        setScreenshotUrl(`local:${id}`);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Screenshot upload failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -109,6 +117,31 @@ export function BillDetailClient({
     }
     setLoading(true);
     setError(null);
+    if (screenshotUrl.startsWith("local:") || !navigator.onLine) {
+      await enqueueMutation({
+        url: `/api/bills/${bill.id}/paid`,
+        json: {
+          isAnonymous: anonymous,
+          screenshotUrl: screenshotUrl.startsWith("local:")
+            ? "https://pending.local/screenshot"
+            : screenshotUrl,
+        },
+        files: screenshotUrl.startsWith("local:")
+          ? [
+              {
+                field: "screenshotUrl",
+                fileId: screenshotUrl.slice("local:".length),
+                purpose: "screenshot",
+              },
+            ]
+          : [],
+      });
+      setMessage("Saved offline — we’ll sync when you’re back.");
+      setLoading(false);
+
+      return;
+    }
+
     const result = await apiOrQueue(`/api/bills/${bill.id}/paid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

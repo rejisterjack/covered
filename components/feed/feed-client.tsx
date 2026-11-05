@@ -12,6 +12,8 @@ import { useOutboxFlush } from "@/lib/offline/outbox";
 export function FeedClient() {
   const [tab, setTab] = useState<FeedTabId>("new");
   const [category, setCategory] = useState<string>();
+  const [near, setNear] = useState<{ lat: number; lng: number } | null>(null);
+  const [radiusKm, setRadiusKm] = useState(25);
   const [bills, setBills] = useState<BillCardData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
@@ -34,11 +36,26 @@ export function FeedClient() {
   }, []);
 
   useEffect(() => {
+    const cacheKey = `covered:feed:${tab}:${category ?? "all"}:${near ? `${near.lat.toFixed(2)}:${radiusKm}` : "anywhere"}`;
+
+    try {
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) setBills(JSON.parse(cached));
+    } catch {
+      // ignore
+    }
+
     startTransition(async () => {
       setError(null);
       const params = new URLSearchParams({ tab });
 
       if (category) params.set("category", category);
+      if (near) {
+        params.set("lat", String(near.lat));
+        params.set("lng", String(near.lng));
+        params.set("radiusKm", String(radiusKm));
+      }
       try {
         const res = await fetch(`/api/bills?${params.toString()}`);
 
@@ -47,19 +64,14 @@ export function FeedClient() {
 
         setBills(data.bills ?? []);
         try {
-          localStorage.setItem(
-            `covered:feed:${tab}:${category ?? "all"}`,
-            JSON.stringify(data.bills ?? []),
-          );
+          localStorage.setItem(cacheKey, JSON.stringify(data.bills ?? []));
         } catch {
           // ignore
         }
       } catch {
         setOffline(true);
         try {
-          const cached = localStorage.getItem(
-            `covered:feed:${tab}:${category ?? "all"}`,
-          );
+          const cached = localStorage.getItem(cacheKey);
 
           if (cached) {
             setBills(JSON.parse(cached));
@@ -72,7 +84,7 @@ export function FeedClient() {
         }
       }
     });
-  }, [tab, category]);
+  }, [tab, category, near, radiusKm]);
 
   return (
     <div>
@@ -82,6 +94,41 @@ export function FeedClient() {
       />
       <FeedTabs value={tab} onChange={setTab} />
       <CategoryFilter value={category} onChange={setCategory} />
+      <div className="flex items-center gap-3 border-b border-[#2f3336] px-4 py-2.5">
+        <button
+          className="text-[13px] font-bold text-[#1d9bf0]"
+          type="button"
+          onClick={() => {
+            if (near) {
+              setNear(null);
+
+              return;
+            }
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition((pos) => {
+              setNear({
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              });
+            });
+          }}
+        >
+          {near ? "Anywhere" : "Near me"}
+        </button>
+        {near ? (
+          <select
+            className="bg-transparent text-[13px] text-[#e7e9ea]"
+            value={radiusKm}
+            onChange={(e) => setRadiusKm(Number(e.target.value))}
+          >
+            {[10, 25, 50, 100].map((km) => (
+              <option key={km} value={km}>
+                {km} km
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
       {offline ? (
         <p className="border-b border-[#2f3336] px-4 py-2.5 text-[13px] text-[#1d9bf0]">
           Offline — showing cached feed when available.

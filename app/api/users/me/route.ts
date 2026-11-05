@@ -28,6 +28,8 @@ export async function GET(request: Request) {
       upiId: user.upiId,
       image: user.image,
       isAnonymousDefault: user.isAnonymousDefault,
+      isVerifiedPublic: user.isVerifiedPublic,
+      verificationRequestedAt: user.verificationRequestedAt?.toISOString() ?? null,
       postingLocked: user.postingLocked,
       totalGiven: Number(user.totalGiven),
       billsCovered: user.billsCovered,
@@ -50,6 +52,15 @@ export async function PATCH(request: Request) {
     return jsonError(parsed.error.issues[0]?.message ?? "Invalid body");
   }
 
+  const current = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isVerifiedPublic: true },
+  });
+
+  if (!current) {
+    return jsonError("User not found", 404);
+  }
+
   const user = await prisma.user.update({
     where: { id: session.user.id },
     data: {
@@ -58,6 +69,9 @@ export async function PATCH(request: Request) {
       ...(parsed.data.upiId !== undefined ? { upiId: parsed.data.upiId } : {}),
       ...(parsed.data.isAnonymousDefault !== undefined
         ? { isAnonymousDefault: parsed.data.isAnonymousDefault }
+        : {}),
+      ...(parsed.data.verificationRequest && !current.isVerifiedPublic
+        ? { verificationRequestedAt: new Date() }
         : {}),
     },
   });
@@ -69,6 +83,9 @@ export async function PATCH(request: Request) {
       city: user.city,
       upiId: user.upiId,
       isAnonymousDefault: user.isAnonymousDefault,
+      isVerifiedPublic: user.isVerifiedPublic,
+      verificationRequestedAt:
+        user.verificationRequestedAt?.toISOString() ?? null,
     },
   });
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { formatInr } from "@/lib/constants";
 import { authClient } from "@/lib/auth-client";
+import { currentPushSubscription, enablePush, pushSupport } from "@/lib/push-client";
 
 type Profile = {
   id: string;
@@ -14,10 +15,14 @@ type Profile = {
   city?: string | null;
   upiId?: string | null;
   isAnonymousDefault: boolean;
+  isVerifiedPublic: boolean;
+  verificationRequestedAt?: string | null;
   postingLocked: boolean;
   totalGiven: number;
   billsCovered: number;
   billsPosted: number;
+  streak: number;
+  badge: 7 | 14 | 30 | null;
 };
 
 export function ProfileForm({ initial }: { initial: Profile }) {
@@ -31,6 +36,11 @@ export function ProfileForm({ initial }: { initial: Profile }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pushOn, setPushOn] = useState(false);
+
+  useEffect(() => {
+    void currentPushSubscription().then((sub) => setPushOn(Boolean(sub)));
+  }, []);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -92,6 +102,15 @@ export function ProfileForm({ initial }: { initial: Profile }) {
             <p className="mt-0.5 text-[12px] text-[#71767b]">Posted</p>
           </div>
         </div>
+        {initial.badge ? (
+          <p className="mt-3 text-center text-[13px] font-bold text-[#1d9bf0]">
+            {initial.badge}-day streak
+          </p>
+        ) : initial.streak > 0 ? (
+          <p className="mt-3 text-center text-[13px] text-[#71767b]">
+            {initial.streak}-day streak
+          </p>
+        ) : null}
       </div>
 
       <div className="px-4 py-5">
@@ -137,6 +156,57 @@ export function ProfileForm({ initial }: { initial: Profile }) {
             />
             Prefer anonymous on leaderboard
           </label>
+          <button
+            className="x-btn x-btn-outline w-full"
+            type="button"
+            onClick={() => {
+              void (async () => {
+                setError(null);
+                try {
+                  await enablePush();
+                  setPushOn(true);
+                  setMessage("Notifications on");
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Push failed");
+                }
+              })();
+            }}
+          >
+            {pushSupport() === "unconfigured"
+              ? "Push not configured"
+              : pushOn
+                ? "Notifications on"
+                : "Turn on notifications"}
+          </button>
+          <button
+            className="x-btn x-btn-outline w-full"
+            disabled={initial.isVerifiedPublic || Boolean(initial.verificationRequestedAt)}
+            type="button"
+            onClick={() => {
+              void (async () => {
+                setError(null);
+                const res = await fetch("/api/users/me", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ verificationRequest: true }),
+                });
+
+                if (!res.ok) {
+                  setError("Could not request verification");
+
+                  return;
+                }
+                setMessage("Verification requested. An admin will review it.");
+                router.refresh();
+              })();
+            }}
+          >
+            {initial.isVerifiedPublic
+              ? "Verified public figure"
+              : initial.verificationRequestedAt
+                ? "Verification requested"
+                : "Request public verification"}
+          </button>
           <button
             className="x-btn x-btn-primary w-full"
             disabled={loading}

@@ -37,3 +37,7 @@ export const MARKETING_PATHS = new Set(["/", "/install"]);
 export function isMarketingPath(pathname: string) {
   return MARKETING_PATHS.has(pathname);
 }
+
+export function isBarePath(pathname: string) {
+  return pathname.startsWith("/embed");
+}

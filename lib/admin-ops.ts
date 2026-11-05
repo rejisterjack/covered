@@ -198,11 +198,32 @@ export async function searchUsers(q: string, take = 50) {
       role: true,
       postingLocked: true,
       isVerifiedPublic: true,
+      verificationRequestedAt: true,
       billsPosted: true,
       billsCovered: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
+    take,
+  });
+}
+
+export async function listVerificationRequests(take = 50) {
+  return prisma.user.findMany({
+    where: {
+      verificationRequestedAt: { not: null },
+      isVerifiedPublic: false,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      city: true,
+      verificationRequestedAt: true,
+      billsPosted: true,
+      billsCovered: true,
+    },
+    orderBy: { verificationRequestedAt: "asc" },
     take,
   });
 }
@@ -249,9 +270,13 @@ export async function toggleUserVerified(userId: string, actorId: string) {
 
   if (!existing) throw new Error("User not found");
 
+  const next = !existing.isVerifiedPublic;
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { isVerifiedPublic: !existing.isVerifiedPublic },
+    data: {
+      isVerifiedPublic: next,
+      verificationRequestedAt: next ? null : existing.verificationRequestedAt,
+    },
   });
 
   await writeAudit({

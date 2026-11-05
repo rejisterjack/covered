@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 enum BillCategory {
@@ -60,6 +58,7 @@ model User {
   role             UserRole  @default(user)
   isVerifiedPublic Boolean   @default(false)
   isAnonymousDefault Boolean @default(false)
+  verificationRequestedAt DateTime?
   postingLocked    Boolean   @default(false)
   totalGiven       Decimal   @default(0) @db.Decimal(12, 2)
   billsCovered     Int       @default(0)
@@ -137,6 +136,8 @@ model Bill {
   paymentType      PaymentType
   paymentQrUrl     String?
   locationCity     String?
+  latitude         Float?
+  longitude        Float?
   status           BillStatus   @default(open)
   coveredById      String?
   coveredBy        User?        @relation("BillCoverer", fields: [coveredById], references: [id])
@@ -222,6 +223,14 @@ model PlatformSettings {
   updatedAt     DateTime @updatedAt
   updatedById   String?
   updatedBy     User?    @relation("SettingsUpdater", fields: [updatedById], references: [id])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }
 
 model AdminAuditLog {

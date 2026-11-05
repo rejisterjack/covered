@@ -23,6 +23,8 @@ describe("serializers", () => {
       paymentType: "upi" as never,
       paymentQrUrl: null,
       locationCity: "Pune",
+      latitude: null,
+      longitude: null,
       status: "open" as never,
       coveredById: null,
       coveredAt: null,

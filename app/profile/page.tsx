@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ProfileForm } from "@/components/auth/profile-form";
+import { getDonorStreak } from "@/lib/leaderboard";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -28,6 +29,7 @@ export default async function ProfilePage() {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
   });
+  const streak = await getDonorStreak(user.id);
 
   return (
     <ProfileForm
@@ -38,10 +40,15 @@ export default async function ProfilePage() {
         city: user.city,
         upiId: user.upiId,
         isAnonymousDefault: user.isAnonymousDefault,
+        isVerifiedPublic: user.isVerifiedPublic,
+        verificationRequestedAt:
+          user.verificationRequestedAt?.toISOString() ?? null,
         postingLocked: user.postingLocked,
         totalGiven: Number(user.totalGiven),
         billsCovered: user.billsCovered,
         billsPosted: user.billsPosted,
+        streak: streak.streak,
+        badge: streak.badge,
       }}
     />
   );
