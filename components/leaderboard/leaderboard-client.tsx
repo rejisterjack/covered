@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 
@@ -30,14 +30,37 @@ type Champion = {
   isVerifiedPublic: boolean;
 };
 
-export function LeaderboardClient({ embed = false }: { embed?: boolean }) {
+export function LeaderboardClient({
+  embed = false,
+  initial,
+}: {
+  embed?: boolean;
+  initial?: { entries: Entry[]; champions: Champion[] };
+}) {
   const [period, setPeriod] = useState<"all" | "month">("all");
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [champions, setChampions] = useState<Champion[]>([]);
+  const [entries, setEntries] = useState<Entry[]>(initial?.entries ?? []);
+  const [champions, setChampions] = useState<Champion[]>(
+    initial?.champions ?? [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const initialRef = useRef(initial);
 
   useEffect(() => {
+    const snapshot = period === "all" ? initialRef.current : undefined;
+
+    if (snapshot && (snapshot.entries.length > 0 || snapshot.champions.length > 0)) {
+      try {
+        const key = `covered:leaderboard:${period}`;
+
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, JSON.stringify(snapshot));
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     void (async () => {
       try {
         const res = await fetch(`/api/leaderboard?period=${period}`);
@@ -55,21 +78,35 @@ export function LeaderboardClient({ embed = false }: { embed?: boolean }) {
         );
         setError(null);
       } catch {
-        const cached = localStorage.getItem(`covered:leaderboard:${period}`);
+        try {
+          const cached = localStorage.getItem(`covered:leaderboard:${period}`);
 
-        if (cached) {
-          const parsed = JSON.parse(cached);
+          if (cached) {
+            const parsed = JSON.parse(cached);
 
-          if (Array.isArray(parsed)) {
-            setEntries(parsed);
-          } else {
-            setEntries(parsed.entries ?? []);
-            setChampions(parsed.champions ?? []);
+            if (Array.isArray(parsed)) {
+              setEntries(parsed);
+            } else {
+              setEntries(parsed.entries ?? []);
+              setChampions(parsed.champions ?? []);
+            }
+            setError("Offline — showing cached leaderboard.");
+
+            return;
           }
-          setError("Offline — showing cached leaderboard.");
-        } else {
-          setError("We’ll sync when you’re back.");
+        } catch {
+          // ignore
         }
+
+        if (snapshot && (snapshot.entries.length > 0 || snapshot.champions.length > 0)) {
+          setEntries(snapshot.entries);
+          setChampions(snapshot.champions);
+          setError("Offline — showing the last board.");
+
+          return;
+        }
+
+        setError("We’ll sync when you’re back.");
       }
     })();
   }, [period]);

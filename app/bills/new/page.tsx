@@ -37,7 +37,7 @@ export default async function NewBillPage() {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { upiId: true, city: true, postingLocked: true },
+    select: { city: true, postingLocked: true },
   });
 
   if (user?.postingLocked) {
@@ -49,5 +49,5 @@ export default async function NewBillPage() {
     );
   }
 
-  return <PostBillForm defaultCity={user?.city} defaultUpi={user?.upiId} />;
+  return <PostBillForm defaultCity={user?.city} />;
 }

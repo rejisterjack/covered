@@ -25,7 +25,6 @@ export async function GET(request: Request) {
       email: user.email,
       emailVerified: user.emailVerified,
       city: user.city,
-      upiId: user.upiId,
       image: user.image,
       isAnonymousDefault: user.isAnonymousDefault,
       isVerifiedPublic: user.isVerifiedPublic,
@@ -66,7 +65,6 @@ export async function PATCH(request: Request) {
     data: {
       ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
       ...(parsed.data.city !== undefined ? { city: parsed.data.city } : {}),
-      ...(parsed.data.upiId !== undefined ? { upiId: parsed.data.upiId } : {}),
       ...(parsed.data.isAnonymousDefault !== undefined
         ? { isAnonymousDefault: parsed.data.isAnonymousDefault }
         : {}),
@@ -81,7 +79,6 @@ export async function PATCH(request: Request) {
       id: user.id,
       name: user.name,
       city: user.city,
-      upiId: user.upiId,
       isAnonymousDefault: user.isAnonymousDefault,
       isVerifiedPublic: user.isVerifiedPublic,
       verificationRequestedAt:

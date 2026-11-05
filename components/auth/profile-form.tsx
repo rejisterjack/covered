@@ -13,7 +13,6 @@ type Profile = {
   name: string;
   email?: string | null;
   city?: string | null;
-  upiId?: string | null;
   isAnonymousDefault: boolean;
   isVerifiedPublic: boolean;
   verificationRequestedAt?: string | null;
@@ -29,7 +28,6 @@ export function ProfileForm({ initial }: { initial: Profile }) {
   const router = useRouter();
   const [name, setName] = useState(initial.name);
   const [city, setCity] = useState(initial.city ?? "");
-  const [upiId, setUpiId] = useState(initial.upiId ?? "");
   const [isAnonymousDefault, setIsAnonymousDefault] = useState(
     initial.isAnonymousDefault,
   );
@@ -52,7 +50,6 @@ export function ProfileForm({ initial }: { initial: Profile }) {
       body: JSON.stringify({
         name,
         city: city || null,
-        upiId: upiId || null,
         isAnonymousDefault,
       }),
     });
@@ -136,15 +133,6 @@ export function ProfileForm({ initial }: { initial: Profile }) {
               className="x-input"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-2 text-[13px] text-[#71767b]">
-            <span>Default UPI (prefill only)</span>
-            <input
-              className="x-input"
-              placeholder="name@upi"
-              value={upiId}
-              onChange={(e) => setUpiId(e.target.value)}
             />
           </label>
           <label className="flex items-start gap-2.5 text-[14px] leading-5 text-[#e7e9ea]">

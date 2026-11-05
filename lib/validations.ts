@@ -88,7 +88,6 @@ export const presignSchema = z.object({
 export const profileUpdateSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   city: z.string().trim().min(2).max(80).optional().nullable(),
-  upiId: z.string().trim().min(3).max(120).optional().nullable(),
   isAnonymousDefault: z.boolean().optional(),
   verificationRequest: z.literal(true).optional(),
 });

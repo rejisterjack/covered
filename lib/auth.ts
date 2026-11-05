@@ -19,11 +19,6 @@ export const auth = betterAuth({
         required: false,
         input: true,
       },
-      upiId: {
-        type: "string",
-        required: false,
-        input: true,
-      },
       role: {
         type: "string",
         required: false,

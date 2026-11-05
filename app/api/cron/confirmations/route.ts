@@ -1,6 +1,10 @@
 import { expireStaleConfirmations } from "@/lib/bills";
 import { jsonError, jsonOk, unauthorized } from "@/lib/http";
 
+export const dynamic = "force-dynamic";
+
+// Hobby cron expressions may run only once per day. vercel.json registers this
+// path once per UTC hour so the 24-hour confirmation window is swept hourly.
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const secret = process.env.CRON_SECRET;

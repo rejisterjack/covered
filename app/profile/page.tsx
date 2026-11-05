@@ -38,7 +38,6 @@ export default async function ProfilePage() {
         name: user.name,
         email: user.email,
         city: user.city,
-        upiId: user.upiId,
         isAnonymousDefault: user.isAnonymousDefault,
         isVerifiedPublic: user.isVerifiedPublic,
         verificationRequestedAt:

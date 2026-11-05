@@ -1,4 +1,4 @@
-const CACHE = "covered-v6";
+const CACHE = "covered-v7";
 const PRECACHE = [
   "/",
   "/install",
@@ -8,14 +8,29 @@ const PRECACHE = [
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/api/bills?tab=new",
+  "/api/bills?tab=hot",
+  "/api/bills?tab=covered",
+  "/api/leaderboard?period=all",
+  "/api/leaderboard?period=month",
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE);
+
+      await Promise.all(
+        PRECACHE.map(async (url) => {
+          try {
+            await cache.add(url);
+          } catch {
+            // One missed URL must not drop the rest of the shell.
+          }
+        }),
+      );
+      await self.skipWaiting();
+    })(),
   );
 });
 

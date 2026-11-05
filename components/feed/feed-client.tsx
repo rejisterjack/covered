@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 
 import { BillCard, type BillCardData } from "@/components/bills/bill-card";
@@ -9,12 +9,17 @@ import { FeedTabs, type FeedTabId } from "@/components/feed/feed-tabs";
 import { PageHeader } from "@/components/layout/page-header";
 import { useOutboxFlush } from "@/lib/offline/outbox";
 
-export function FeedClient() {
+export function FeedClient({
+  initialBills = [],
+}: {
+  initialBills?: BillCardData[];
+}) {
   const [tab, setTab] = useState<FeedTabId>("new");
   const [category, setCategory] = useState<string>();
   const [near, setNear] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusKm, setRadiusKm] = useState(25);
-  const [bills, setBills] = useState<BillCardData[]>([]);
+  const [bills, setBills] = useState<BillCardData[]>(initialBills);
+  const snapshotRef = useRef(initialBills);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -38,12 +43,22 @@ export function FeedClient() {
   useEffect(() => {
     const cacheKey = `covered:feed:${tab}:${category ?? "all"}:${near ? `${near.lat.toFixed(2)}:${radiusKm}` : "anywhere"}`;
 
+    const defaultSnapshot =
+      tab === "new" && !category && !near ? snapshotRef.current : [];
+
     try {
       const cached = localStorage.getItem(cacheKey);
 
-      if (cached) setBills(JSON.parse(cached));
+      if (cached) {
+        setBills(JSON.parse(cached));
+      } else if (defaultSnapshot.length > 0) {
+        setBills(defaultSnapshot);
+        localStorage.setItem(cacheKey, JSON.stringify(defaultSnapshot));
+      } else {
+        setBills([]);
+      }
     } catch {
-      // ignore
+      setBills(defaultSnapshot);
     }
 
     startTransition(async () => {
@@ -76,12 +91,16 @@ export function FeedClient() {
           if (cached) {
             setBills(JSON.parse(cached));
             setError(null);
-          } else {
-            setError("We’ll sync when you’re back online.");
+
+            return;
           }
         } catch {
-          setError("We’ll sync when you’re back online.");
+          // ignore
         }
+        if (defaultSnapshot.length > 0) {
+          setBills(defaultSnapshot);
+        }
+        setError(null);
       }
     });
   }, [tab, category, near, radiusKm]);
@@ -134,7 +153,7 @@ export function FeedClient() {
           Offline — showing cached feed when available.
         </p>
       ) : null}
-      {pending ? (
+      {pending && bills.length === 0 ? (
         <p className="px-4 py-10 text-center text-[15px] text-[#71767b]">
           Loading…
         </p>

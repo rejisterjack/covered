@@ -18,10 +18,8 @@ const STEPS: { id: Step; label: string }[] = [
 ];
 
 export function PostBillForm({
-  defaultUpi,
   defaultCity,
 }: {
-  defaultUpi?: string | null;
   defaultCity?: string | null;
 }) {
   const router = useRouter();
@@ -34,7 +32,7 @@ export function PostBillForm({
   const [category, setCategory] = useState("utilities");
   const [story, setStory] = useState("");
   const [paymentType, setPaymentType] = useState("upi");
-  const [paymentHandle, setPaymentHandle] = useState(defaultUpi ?? "");
+  const [paymentHandle, setPaymentHandle] = useState("");
   const [paymentQrUrl, setPaymentQrUrl] = useState<string | undefined>();
   const [locationCity, setLocationCity] = useState(defaultCity ?? "");
   const [latitude, setLatitude] = useState<number | null>(null);

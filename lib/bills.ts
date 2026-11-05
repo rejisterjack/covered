@@ -7,7 +7,8 @@ import {
 } from "@prisma/client";
 import { addHours, subHours } from "date-fns";
 
-import { haversineKm } from "@/lib/rank";
+import { compareHotBills, utcDayStart } from "@/lib/hot";
+import { dayKey, haversineKm } from "@/lib/rank";
 
 import { isPostingPaused } from "@/lib/admin";
 import {
@@ -62,20 +63,59 @@ export async function listBills(input: {
 
   if (input.tab === "hot") {
     where.status = BillStatus.open;
-    const since = subHours(new Date(), 24);
+    const start = utcDayStart();
+    const day = dayKey(start);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+    const [tapGroups, viewGroups] = await Promise.all([
+      prisma.coverIntent.groupBy({
+        by: ["billId"],
+        where: { createdAt: { gte: start, lt: end }, bill: where },
+        _count: { _all: true },
+      }),
+      prisma.billViewDay.groupBy({
+        by: ["billId"],
+        where: { day, views: { gt: 0 }, bill: where },
+        _sum: { views: true },
+      }),
+    ]);
+
+    const taps = new Map(
+      tapGroups.map((group) => [group.billId, group._count._all]),
+    );
+    const views = new Map(
+      viewGroups.map((group) => [group.billId, group._sum.views ?? 0]),
+    );
+    const rankedIds = Array.from(new Set([...taps.keys(), ...views.keys()]))
+      .sort((a, b) =>
+        compareHotBills(
+          { coverTapsToday: taps.get(a) ?? 0, viewsToday: views.get(a) ?? 0 },
+          { coverTapsToday: taps.get(b) ?? 0, viewsToday: views.get(b) ?? 0 },
+        ),
+      )
+      .slice(0, input.near ? 200 : take);
+
+    if (rankedIds.length === 0) return [];
 
     const hot = await prisma.bill.findMany({
-      where: {
-        ...where,
-        OR: [
-          { createdAt: { gte: since } },
-          { coverIntents: { some: { createdAt: { gte: since } } } },
-        ],
-      },
+      where: { ...where, id: { in: rankedIds } },
       include: { poster: { select: posterSelect } },
-      orderBy: [{ coverIntentCount: "desc" }, { viewsCount: "desc" }],
-      take: input.near ? 200 : take,
     });
+
+    hot.sort((a, b) =>
+      compareHotBills(
+        {
+          coverTapsToday: taps.get(a.id) ?? 0,
+          viewsToday: views.get(a.id) ?? 0,
+          createdAt: a.createdAt,
+        },
+        {
+          coverTapsToday: taps.get(b.id) ?? 0,
+          viewsToday: views.get(b.id) ?? 0,
+          createdAt: b.createdAt,
+        },
+      ),
+    );
 
     return withinRadius(hot, input.near, take);
   }
@@ -257,10 +297,19 @@ export async function incrementBillViews(id: string) {
 
   if (!bill) return;
 
-  await prisma.bill.update({
-    where: { id },
-    data: { viewsCount: { increment: 1 } },
-  });
+  const day = dayKey(new Date());
+
+  await prisma.$transaction([
+    prisma.bill.update({
+      where: { id },
+      data: { viewsCount: { increment: 1 } },
+    }),
+    prisma.billViewDay.upsert({
+      where: { billId_day: { billId: id, day } },
+      create: { billId: id, day, views: 1 },
+      update: { views: { increment: 1 } },
+    }),
+  ]);
 }
 
 export async function recordCoverIntent(billId: string, userId: string) {
