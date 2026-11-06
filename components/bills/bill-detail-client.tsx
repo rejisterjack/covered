@@ -5,8 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { OutboxBanner } from "@/components/offline/outbox-banner";
 import { FLAG_REASONS, formatInr } from "@/lib/constants";
-import { apiOrQueue, enqueueMutation, saveLocalFile } from "@/lib/offline/outbox";
+import {
+  apiOrQueue,
+  enqueueMutation,
+  saveLocalFile,
+  useOutboxFlush,
+} from "@/lib/offline/outbox";
 import { uploadFile } from "@/lib/upload-client";
 
 type BillDetail = {
@@ -55,6 +61,7 @@ export function BillDetailClient({
   signedIn: boolean;
 }) {
   const router = useRouter();
+  const outbox = useOutboxFlush();
   const [bill, setBill] = useState(initialBill);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +143,7 @@ export function BillDetailClient({
             ]
           : [],
       });
+      await outbox.refresh();
       setMessage("Saved offline — we’ll sync when you’re back.");
       setLoading(false);
 
@@ -152,6 +160,7 @@ export function BillDetailClient({
     });
 
     if (result.queued) {
+      await outbox.refresh();
       setMessage("Saved offline — we’ll sync when you’re back.");
       setLoading(false);
 
@@ -222,6 +231,8 @@ export function BillDetailClient({
         className="aspect-[4/3] w-full border-b border-[#2f3336] object-cover sm:aspect-[16/9]"
         src={bill.imageUrl}
       />
+
+      <OutboxBanner outbox={outbox} />
 
       <div className="space-y-5 px-4 py-5">
         <div className="flex items-start gap-3">

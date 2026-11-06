@@ -73,6 +73,8 @@ model User {
   pushSubscriptions PushSubscription[]
   adminAuditLogs   AdminAuditLog[]
   platformSettingsUpdated PlatformSettings[] @relation("SettingsUpdater")
+  invitesCreated   InviteCode[]    @relation("InviteCreator")
+  inviteRedeemed   InviteCode?     @relation("InviteRedeemer")
 }
 
 model Session {
@@ -218,11 +220,26 @@ model PushSubscription {
 }
 
 model PlatformSettings {
-  id            String   @id @default("default")
-  pausePosting  Boolean  @default(false)
-  updatedAt     DateTime @updatedAt
-  updatedById   String?
-  updatedBy     User?    @relation("SettingsUpdater", fields: [updatedById], references: [id])
+  id                 String   @id @default("default")
+  pausePosting       Boolean  @default(false)
+  softLaunchInvites  Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+  updatedById        String?
+  updatedBy          User?    @relation("SettingsUpdater", fields: [updatedById], references: [id])
+}
+
+model InviteCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  createdById  String?
+  createdBy    User?     @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  redeemedById String?   @unique
+  redeemedBy   User?     @relation("InviteRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
+  redeemedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
 }
 
 model BillViewDay {

@@ -52,4 +52,5 @@ describe("bill trust transitions", () => {
       isConfirmationExpired(marked, new Date("2026-03-27T09:59:59.000Z"), 24),
     ).toBe(false);
   });
+
 });

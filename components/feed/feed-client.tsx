@@ -7,6 +7,7 @@ import { BillCard, type BillCardData } from "@/components/bills/bill-card";
 import { CategoryFilter } from "@/components/feed/category-filter";
 import { FeedTabs, type FeedTabId } from "@/components/feed/feed-tabs";
 import { PageHeader } from "@/components/layout/page-header";
+import { OutboxBanner } from "@/components/offline/outbox-banner";
 import { useOutboxFlush } from "@/lib/offline/outbox";
 
 export function FeedClient({
@@ -24,7 +25,7 @@ export function FeedClient({
   const [offline, setOffline] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  useOutboxFlush();
+  const outbox = useOutboxFlush();
 
   useEffect(() => {
     const onOnline = () => setOffline(false);
@@ -153,6 +154,7 @@ export function FeedClient({
           Offline — showing cached feed when available.
         </p>
       ) : null}
+      <OutboxBanner outbox={outbox} />
       {pending && bills.length === 0 ? (
         <p className="px-4 py-10 text-center text-[15px] text-[#71767b]">
           Loading…

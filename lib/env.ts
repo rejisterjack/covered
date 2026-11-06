@@ -20,6 +20,7 @@ const serverSchema = z.object({
   FLAG_AUTO_THRESHOLD: z.string().optional(),
   POSTING_LOCK_UNCONFIRMED_THRESHOLD: z.string().optional(),
   CONFIRMATION_WINDOW_HOURS: z.string().optional(),
+  SOFT_LAUNCH_INVITES: z.string().optional(),
 });
 
 export const env = {
@@ -37,6 +38,9 @@ export const env = {
   confirmationWindowHours: Number(
     process.env.CONFIRMATION_WINDOW_HOURS ?? "24",
   ),
+  softLaunchInvites:
+    process.env.SOFT_LAUNCH_INVITES === "1" ||
+    process.env.SOFT_LAUNCH_INVITES === "true",
   r2PublicUrl:
     process.env.NEXT_PUBLIC_R2_PUBLIC_URL ??
     "https://pub-6559559f305340a1b5b701d1a78dcc62.r2.dev",

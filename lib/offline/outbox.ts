@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { uploadFile } from "@/lib/upload-client";
 
@@ -14,6 +14,8 @@ export type OutboxFileRef = {
   purpose: "bill" | "qr" | "screenshot" | "avatar";
 };
 
+export type OutboxStatus = "pending" | "error";
+
 export type OutboxItem = {
   id: string;
   url: string;
@@ -21,6 +23,9 @@ export type OutboxItem = {
   body?: string;
   files?: OutboxFileRef[];
   createdAt: number;
+  status: OutboxStatus;
+  lastError?: string;
+  attempts: number;
 };
 
 type StoredFile = {
@@ -29,6 +34,13 @@ type StoredFile = {
   type: string;
   name: string;
   buffer: ArrayBuffer;
+};
+
+export type FlushResult = {
+  flushed: number;
+  failed: number;
+  pending: number;
+  errors: Array<{ id: string; error: string }>;
 };
 
 function openDb(): Promise<IDBDatabase> {
@@ -50,15 +62,16 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-export async function enqueueOutbox(
-  item: Omit<OutboxItem, "id" | "createdAt">,
-) {
-  const db = await openDb();
-  const record: OutboxItem = {
-    ...item,
-    id: crypto.randomUUID(),
-    createdAt: Date.now(),
+function normalizeItem(raw: OutboxItem): OutboxItem {
+  return {
+    ...raw,
+    status: raw.status === "error" ? "error" : "pending",
+    attempts: typeof raw.attempts === "number" ? raw.attempts : 0,
   };
+}
+
+async function putOutbox(record: OutboxItem) {
+  const db = await openDb();
 
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -67,6 +80,20 @@ export async function enqueueOutbox(
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+export async function enqueueOutbox(
+  item: Omit<OutboxItem, "id" | "createdAt" | "status" | "attempts" | "lastError">,
+) {
+  const record: OutboxItem = {
+    ...item,
+    id: crypto.randomUUID(),
+    createdAt: Date.now(),
+    status: "pending",
+    attempts: 0,
+  };
+
+  await putOutbox(record);
 
   return record;
 }
@@ -78,7 +105,8 @@ export async function listOutbox() {
     const tx = db.transaction(STORE, "readonly");
     const req = tx.objectStore(STORE).getAll();
 
-    req.onsuccess = () => resolve(req.result as OutboxItem[]);
+    req.onsuccess = () =>
+      resolve((req.result as OutboxItem[]).map(normalizeItem));
     req.onerror = () => reject(req.error);
   });
 }
@@ -157,10 +185,26 @@ export async function enqueueMutation(input: {
   });
 }
 
-export async function flushOutbox() {
-  if (!navigator.onLine) return { flushed: 0 };
+async function markOutboxError(item: OutboxItem, message: string) {
+  await putOutbox({
+    ...item,
+    status: "error",
+    lastError: message,
+    attempts: (item.attempts ?? 0) + 1,
+  });
+}
+
+export async function flushOutbox(): Promise<FlushResult> {
+  if (!navigator.onLine) {
+    const pending = (await listOutbox()).length;
+
+    return { flushed: 0, failed: 0, pending, errors: [] };
+  }
+
   const items = await listOutbox();
   let flushed = 0;
+  let failed = 0;
+  const errors: FlushResult["errors"] = [];
 
   for (const item of items) {
     try {
@@ -189,29 +233,116 @@ export async function flushOutbox() {
       });
 
       if (res.ok || res.status === 409) {
-        await Promise.all((item.files ?? []).map((ref) => deleteLocalFile(ref.fileId)));
+        await Promise.all(
+          (item.files ?? []).map((ref) => deleteLocalFile(ref.fileId)),
+        );
         await removeOutbox(item.id);
         flushed += 1;
+        continue;
       }
-    } catch {
-      // keep for next online event
+
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+      const message =
+        data?.error ?? `Request failed (${res.status})`;
+
+      await markOutboxError(item, message);
+      failed += 1;
+      errors.push({ id: item.id, error: message });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Sync failed";
+
+      await markOutboxError(item, message);
+      failed += 1;
+      errors.push({ id: item.id, error: message });
     }
   }
 
-  return { flushed };
+  const remaining = await listOutbox();
+
+  return {
+    flushed,
+    failed,
+    pending: remaining.length,
+    errors,
+  };
 }
 
 export function useOutboxFlush() {
+  const [items, setItems] = useState<OutboxItem[]>([]);
+  const [flushing, setFlushing] = useState(false);
+  const [lastFlushError, setLastFlushError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setItems(await listOutbox());
+    } catch {
+      setItems([]);
+    }
+  }, []);
+
+  const retry = useCallback(async () => {
+    setFlushing(true);
+    setLastFlushError(null);
+    try {
+      const result = await flushOutbox();
+
+      if (result.failed > 0) {
+        setLastFlushError(
+          result.errors[0]?.error ?? "Some offline actions failed to sync",
+        );
+      } else {
+        setLastFlushError(null);
+      }
+      setItems(await listOutbox());
+
+      return result;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not sync offline queue";
+
+      setLastFlushError(message);
+
+      return {
+        flushed: 0,
+        failed: 1,
+        pending: 0,
+        errors: [{ id: "flush", error: message }],
+      } satisfies FlushResult;
+    } finally {
+      setFlushing(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const run = () => {
-      void flushOutbox();
+    void refresh();
+    void retry();
+    const onOnline = () => {
+      void retry();
     };
 
-    run();
-    window.addEventListener("online", run);
+    window.addEventListener("online", onOnline);
 
-    return () => window.removeEventListener("online", run);
-  }, []);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refresh, retry]);
+
+  const pendingCount = items.length;
+  const errorCount = items.filter((item) => item.status === "error").length;
+  const status: "idle" | "pending" | "error" =
+    errorCount > 0 ? "error" : pendingCount > 0 ? "pending" : "idle";
+
+  return {
+    items,
+    pendingCount,
+    errorCount,
+    status,
+    flushing,
+    lastFlushError,
+    refresh,
+    retry,
+  };
 }
 
 export async function apiOrQueue(

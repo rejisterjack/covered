@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { PostBillForm } from "@/components/bills/post-bill-form";
+import { RedeemInviteForm } from "@/components/invites/redeem-invite-form";
 import { isPostingPaused } from "@/lib/admin";
+import { canPostUnderSoftLaunch } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
@@ -33,6 +35,12 @@ export default async function NewBillPage() {
         Posting is temporarily paused by the platform. Check back soon.
       </div>
     );
+  }
+
+  const gate = await canPostUnderSoftLaunch(session.user.id);
+
+  if (!gate.allowed) {
+    return <RedeemInviteForm />;
   }
 
   const user = await prisma.user.findUnique({

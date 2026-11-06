@@ -5,8 +5,14 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { OutboxBanner } from "@/components/offline/outbox-banner";
 import { CATEGORIES, PAYMENT_TYPES } from "@/lib/constants";
-import { apiOrQueue, enqueueMutation, saveLocalFile } from "@/lib/offline/outbox";
+import {
+  apiOrQueue,
+  enqueueMutation,
+  saveLocalFile,
+  useOutboxFlush,
+} from "@/lib/offline/outbox";
 import { uploadFile } from "@/lib/upload-client";
 
 type Step = "photo" | "details" | "payment";
@@ -23,6 +29,7 @@ export function PostBillForm({
   defaultCity?: string | null;
 }) {
   const router = useRouter();
+  const outbox = useOutboxFlush();
   const [step, setStep] = useState<Step>("photo");
   const [imageUrl, setImageUrl] = useState("");
   const [billerName, setBillerName] = useState("");
@@ -140,6 +147,7 @@ export function PostBillForm({
         },
         files,
       });
+      await outbox.refresh();
       router.push("/app?queued=1");
 
       return;
@@ -153,6 +161,7 @@ export function PostBillForm({
 
     if (result.queued) {
       setError(null);
+      await outbox.refresh();
       router.push("/app?queued=1");
 
       return;
@@ -199,6 +208,8 @@ export function PostBillForm({
           </div>
         ))}
       </div>
+
+      <OutboxBanner outbox={outbox} />
 
       <div className="space-y-5 px-4 py-5">
         {step === "photo" ? (

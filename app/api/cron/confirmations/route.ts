@@ -1,4 +1,7 @@
-import { expireStaleConfirmations } from "@/lib/bills";
+import {
+  expireOverdueOpenBills,
+  expireStaleConfirmations,
+} from "@/lib/bills";
 import { jsonError, jsonOk, unauthorized } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +17,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await expireStaleConfirmations();
+    const [confirmations, overdue] = await Promise.all([
+      expireStaleConfirmations(),
+      expireOverdueOpenBills(),
+    ]);
 
-    return jsonOk({ ok: true, ...result });
+    return jsonOk({
+      ok: true,
+      processed: confirmations.processed,
+      expired: overdue.expired,
+    });
   } catch (error) {
     return jsonError(
       error instanceof Error ? error.message : "Cron failed",

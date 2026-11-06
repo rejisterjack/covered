@@ -28,7 +28,7 @@
 - Unique flags per user/bill
 - Auto-flag at `FLAG_AUTO_THRESHOLD` (default 3)
 - Soft posting lock after repeated unconfirmed receipts
-- Cron expires stale `pending_confirmation` after 24h
+- Cron expires stale `pending_confirmation` after 24h and marks open bills past `dueDate` as `expired`
 
 ## Secrets
 

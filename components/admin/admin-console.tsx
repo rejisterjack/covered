@@ -101,6 +101,18 @@ export function AdminConsole() {
     }>
   >([]);
   const [pausePosting, setPausePosting] = useState(false);
+  const [softLaunchInvites, setSoftLaunchInvites] = useState(false);
+  const [softLaunchEffective, setSoftLaunchEffective] = useState(false);
+  const [mintedCodes, setMintedCodes] = useState<string[]>([]);
+  const [invites, setInvites] = useState<
+    Array<{
+      id: string;
+      code: string;
+      createdAt: string;
+      redeemedAt: string | null;
+      redeemedBy: { email: string } | null;
+    }>
+  >([]);
   const [audit, setAudit] = useState<
     Array<{
       id: string;
@@ -135,9 +147,15 @@ export function AdminConsole() {
 
           setPendingBills(data.bills);
         } else if (target === "platform") {
-          const data = await adminFetch("/api/admin/settings");
+          const [settingsData, invitesData] = await Promise.all([
+            adminFetch("/api/admin/settings"),
+            adminFetch("/api/admin/invites"),
+          ]);
 
-          setPausePosting(data.settings.pausePosting);
+          setPausePosting(settingsData.settings.pausePosting);
+          setSoftLaunchInvites(settingsData.settings.softLaunchInvites);
+          setSoftLaunchEffective(settingsData.settings.softLaunchEffective);
+          setInvites(invitesData.invites ?? []);
         } else if (target === "users") {
           const data = await adminFetch("/api/admin/users?requests=1");
 
@@ -206,6 +224,42 @@ export function AdminConsole() {
       flash(data.settings.pausePosting ? "Posting paused" : "Posting resumed");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  async function toggleSoftLaunch() {
+    setError(null);
+    try {
+      const data = await adminFetch("/api/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ softLaunchInvites: !softLaunchInvites }),
+      });
+
+      setSoftLaunchInvites(data.settings.softLaunchInvites);
+      setSoftLaunchEffective(data.settings.softLaunchEffective);
+      flash(
+        data.settings.softLaunchInvites
+          ? "Soft-launch invites enabled"
+          : "Soft-launch invites disabled",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  async function mintInvites() {
+    setError(null);
+    try {
+      const data = await adminFetch("/api/admin/invites", {
+        method: "POST",
+        body: JSON.stringify({ count: 5 }),
+      });
+
+      setMintedCodes(data.codes ?? []);
+      flash(`Minted ${(data.codes as string[]).length} invite codes`);
+      loadSection("platform");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Mint failed");
     }
   }
 
@@ -546,18 +600,70 @@ export function AdminConsole() {
         ) : null}
 
         {section === "platform" ? (
-          <div className="space-y-4 rounded-2xl border border-[#2f3336] p-4">
-            <p className="text-sm text-[#e7e9ea]">
-              Pause posting is currently{" "}
-              <span className="font-bold">{pausePosting ? "ON" : "off"}</span>.
-              When on, <code className="text-[#1d9bf0]">POST /api/bills</code>{" "}
-              returns 403.
-            </p>
-            <ActionButton
-              danger={!pausePosting}
-              label={pausePosting ? "Resume posting" : "Pause posting"}
-              onClick={() => void togglePause()}
-            />
+          <div className="space-y-6">
+            <div className="space-y-4 rounded-2xl border border-[#2f3336] p-4">
+              <p className="text-sm text-[#e7e9ea]">
+                Pause posting is currently{" "}
+                <span className="font-bold">{pausePosting ? "ON" : "off"}</span>.
+                When on, <code className="text-[#1d9bf0]">POST /api/bills</code>{" "}
+                returns 403.
+              </p>
+              <ActionButton
+                danger={!pausePosting}
+                label={pausePosting ? "Resume posting" : "Pause posting"}
+                onClick={() => void togglePause()}
+              />
+            </div>
+            <div className="space-y-4 rounded-2xl border border-[#2f3336] p-4">
+              <p className="text-sm text-[#e7e9ea]">
+                Soft-launch invites (DB) is{" "}
+                <span className="font-bold">
+                  {softLaunchInvites ? "ON" : "off"}
+                </span>
+                . Effective gate:{" "}
+                <span className="font-bold">
+                  {softLaunchEffective ? "ON" : "off"}
+                </span>{" "}
+                (env <code className="text-[#1d9bf0]">SOFT_LAUNCH_INVITES</code>{" "}
+                or this toggle). When on, only redeemed invite holders and
+                admins can post.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <ActionButton
+                  label={
+                    softLaunchInvites
+                      ? "Disable soft-launch gate"
+                      : "Enable soft-launch gate"
+                  }
+                  onClick={() => void toggleSoftLaunch()}
+                />
+                <ActionButton
+                  label="Mint 5 invite codes"
+                  onClick={() => void mintInvites()}
+                />
+              </div>
+              {mintedCodes.length > 0 ? (
+                <p className="break-all text-sm text-[#1d9bf0]">
+                  New codes: {mintedCodes.join(" · ")}
+                </p>
+              ) : null}
+              <ul className="divide-y divide-[#2f3336]">
+                {invites.length === 0 ? (
+                  <li className="py-3 text-sm text-[#71767b]">No codes yet.</li>
+                ) : null}
+                {invites.slice(0, 20).map((invite) => (
+                  <li key={invite.id} className="py-3 text-sm">
+                    <p className="font-mono text-[#e7e9ea]">{invite.code}</p>
+                    <p className="text-xs text-[#71767b]">
+                      {invite.redeemedAt
+                        ? `Redeemed by ${invite.redeemedBy?.email ?? "user"}`
+                        : "Unused"}{" "}
+                      · {new Date(invite.createdAt).toLocaleString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         ) : null}
 

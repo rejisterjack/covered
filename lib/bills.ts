@@ -17,6 +17,7 @@ import {
   normalizeReferenceNo,
 } from "@/lib/bill-rules";
 import { env } from "@/lib/env";
+import { assertCanPostUnderSoftLaunch } from "@/lib/invites";
 import { prisma } from "@/lib/prisma";
 import { sendPushToUser } from "@/lib/push";
 
@@ -38,8 +39,13 @@ export async function listBills(input: {
   near?: { lat: number; lng: number; radiusKm: number };
 }) {
   await expireStaleConfirmations();
+  await expireOverdueOpenBills();
   const take = input.take ?? 20;
-  const where: Prisma.BillWhereInput = { deletedAt: null };
+  // Feed never surfaces expired (or flagged) bills — only open / covered tabs.
+  const where: Prisma.BillWhereInput = {
+    deletedAt: null,
+    status: { notIn: [BillStatus.expired, BillStatus.flagged] },
+  };
 
   if (input.category) {
     where.category = input.category;
@@ -176,6 +182,8 @@ export async function createBill(input: {
     throw new Error("Posting paused");
   }
 
+  await assertCanPostUnderSoftLaunch(input.posterId);
+
   const dueDate =
     input.dueDate instanceof Date
       ? input.dueDate
@@ -270,6 +278,7 @@ export async function createBill(input: {
 
 export async function getBillById(id: string) {
   await expireStaleConfirmations();
+  await expireOverdueOpenBills();
   const bill = await prisma.bill.findUnique({
     where: { id },
     include: {
@@ -510,6 +519,20 @@ export async function flagBill(input: {
   }
 
   return { flagCount, flagged: flagCount >= env.flagAutoThreshold };
+}
+
+/** Mark open bills past their due date as expired. */
+export async function expireOverdueOpenBills(now = new Date()) {
+  const result = await prisma.bill.updateMany({
+    where: {
+      status: BillStatus.open,
+      deletedAt: null,
+      dueDate: { lt: now },
+    },
+    data: { status: BillStatus.expired },
+  });
+
+  return { expired: result.count };
 }
 
 export async function expireStaleConfirmations() {

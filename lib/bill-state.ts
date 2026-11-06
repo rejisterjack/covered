@@ -2,6 +2,11 @@ import { BillStatus } from "@prisma/client";
 
 /** Pure helpers for trust-flow transitions (unit-tested). */
 
+/** Open bills whose due date is strictly before `now` should expire. */
+export function isOpenBillPastDue(dueDate: Date, now = new Date()) {
+  return dueDate.getTime() < now.getTime();
+}
+
 export function canMarkPaid(status: BillStatus, isPoster: boolean) {
   return status === BillStatus.open && !isPoster;
 }

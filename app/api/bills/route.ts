@@ -91,7 +91,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to create bill";
-    const status = message === "Posting paused" ? 403 : 400;
+    const status =
+      message === "Posting paused" || message.includes("Invite required")
+        ? 403
+        : 400;
 
     return jsonError(message, status);
   }

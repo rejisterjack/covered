@@ -90,7 +90,7 @@ export async function writeAudit(input: {
 export async function getPlatformSettings() {
   return prisma.platformSettings.upsert({
     where: { id: "default" },
-    create: { id: "default", pausePosting: false },
+    create: { id: "default", pausePosting: false, softLaunchInvites: false },
     update: {},
   });
 }
