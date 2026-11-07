@@ -1,11 +1,10 @@
-import { Fira_Code as FontMono, Inter as FontSans } from "next/font/google";
+/** X.com uses a system UI stack — no Google display fonts. */
+export const fontSans = {
+  variable: "",
+  className: "",
+};
 
-export const fontSans = FontSans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
-
-export const fontMono = FontMono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-});
+export const fontDisplay = {
+  variable: "",
+  className: "",
+};

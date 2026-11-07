@@ -1,42 +1,48 @@
-# Next.js & HeroUI Template
+# Covered
 
-This is a template for creating applications using Next.js 16 (app directory) and HeroUI (v3).
+**Post your bill. Someone's got it.**
 
-[Try it on CodeSandbox](https://githubbox.com/heroui-inc/heroui/next-app-template)
+**Home:** [covered.rejisterjack.com](https://covered.rejisterjack.com)
 
-## Technologies Used
+Mobile-first PWA where anyone posts a bill they cannot pay. Donors browse the feed, pay peer-to-peer outside the app, and land on a public leaderboard. Covered never touches money.
 
-- [Next.js 16](https://nextjs.org/docs/getting-started)
-- [HeroUI v3](https://heroui.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Tailwind Variants](https://tailwind-variants.org)
-- [TypeScript](https://www.typescriptlang.org/)
-- [next-themes](https://github.com/pacocoursey/next-themes)
+See [VISION.md](./VISION.md) for product intent and [docs/LAUNCH.md](./docs/LAUNCH.md) for go-live.
 
-## How to Use
+## Public deploy
 
-### Use the template with create-next-app
+[covered.rejisterjack.com](https://covered.rejisterjack.com) is the live Vercel + Neon soft launch. Soft-launch invites can be required via `SOFT_LAUNCH_INVITES` / Admin → Platform. Terms and Privacy are operator drafts — not counsel-reviewed. There is no demo seed data and no payment processing.
 
-To create a new project based on this template using `create-next-app`, run the following command:
+## Stack
 
-```bash
-npx create-next-app -e https://github.com/heroui-inc/next-app-template
-```
+- Next.js App Router + HeroUI
+- Neon / Postgres + Prisma
+- Better Auth (email magic link) + Resend
+- Cloudflare R2 uploads
+- Vercel deploy + hourly confirmation cron
+- PWA service worker + IndexedDB outbox
 
-### Install dependencies
-
-You can use one of them `npm`, `yarn`, `pnpm`, `bun`, Example using `npm`:
+## Local setup
 
 ```bash
-npm install
+bun install
+docker compose up -d   # Postgres on localhost:5434
+bunx prisma migrate deploy
+bun run dev
 ```
 
-### Run the development server
+Do not seed demo data — the app starts empty.
 
-```bash
-npm run dev
-```
+Copy `.env.example` → `.env` and fill production secrets when deploying.
 
-## License
+## Scripts
 
-Licensed under the [MIT license](https://github.com/heroui-inc/next-app-template/blob/main/LICENSE).
+| Command | Purpose |
+|---|---|
+| `bun run dev` | Local app |
+| `bun run test` | Unit tests |
+| `bun run test:e2e` | Playwright smoke |
+| `bun run build` | Production build |
+
+## Money boundary
+
+Do not add payment processing, escrow, or payouts. Payment handles are revealed only after an authenticated cover intent.

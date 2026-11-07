@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum BillCategory {
+  medical
+  rent
+  utilities
+  education
+  food
+  other
+}
+
+enum BillStatus {
+  open
+  pending_confirmation
+  covered
+  expired
+  flagged
+}
+
+enum PaymentType {
+  upi
+  venmo
+  paypal
+  other
+}
+
+enum FlagReason {
+  fake_bill
+  suspicious_payment
+  spam
+  harassment
+  other
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  emailVerified    Boolean   @default(false)
+  image            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  phoneNumber      String?   @unique
+  phoneNumberVerified Boolean @default(false)
+  city             String?
+  role             UserRole  @default(user)
+  isVerifiedPublic Boolean   @default(false)
+  isAnonymousDefault Boolean @default(false)
+  verificationRequestedAt DateTime?
+  postingLocked    Boolean   @default(false)
+  totalGiven       Decimal   @default(0) @db.Decimal(12, 2)
+  billsCovered     Int       @default(0)
+  billsPosted      Int       @default(0)
+
+  sessions         Session[]
+  accounts         Account[]
+  billsPostedRel   Bill[]          @relation("BillPoster")
+  billsCoveredRel  Bill[]          @relation("BillCoverer")
+  payments         Payment[]
+  flags            Flag[]
+  coverIntents     CoverIntent[]
+  pushSubscriptions PushSubscription[]
+  adminAuditLogs   AdminAuditLog[]
+  platformSettingsUpdated PlatformSettings[] @relation("SettingsUpdater")
+  invitesCreated   InviteCode[]    @relation("InviteCreator")
+  inviteRedeemed   InviteCode?     @relation("InviteRedeemer")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Bill {
+  id               String       @id @default(cuid())
+  posterId         String
+  poster           User         @relation("BillPoster", fields: [posterId], references: [id], onDelete: Cascade)
+  amount           Decimal      @db.Decimal(12, 2)
+  currency         String       @default("INR")
+  category         BillCategory
+  billerName       String
+  referenceNo      String
+  dueDate          DateTime
+  story            String       @default("")
+  imageUrl         String
+  paymentHandle    String
+  paymentType      PaymentType
+  paymentQrUrl     String?
+  locationCity     String?
+  latitude         Float?
+  longitude        Float?
+  status           BillStatus   @default(open)
+  coveredById      String?
+  coveredBy        User?        @relation("BillCoverer", fields: [coveredById], references: [id])
+  coveredAt        DateTime?
+  viewsCount       Int          @default(0)
+  coverIntentCount Int          @default(0)
+  deletedAt        DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  payments     Payment[]
+  flags        Flag[]
+  coverIntents CoverIntent[]
+  viewDays     BillViewDay[]
+
+  @@index([status, createdAt])
+  @@index([category, status])
+  @@index([coveredAt])
+  @@index([posterId])
+  @@index([deletedAt])
+  @@index([billerName, referenceNo, status])
+}
+
+model Payment {
+  id                 String    @id @default(cuid())
+  billId             String
+  bill               Bill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  donorId            String
+  donor              User      @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  amount             Decimal   @db.Decimal(12, 2)
+  isAnonymous        Boolean   @default(false)
+  screenshotUrl      String?
+  donorMarkedAt      DateTime  @default(now())
+  posterConfirmedAt  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([billId])
+  @@index([donorId])
+  @@index([posterConfirmedAt])
+  @@index([donorId, posterConfirmedAt])
+}
+
+model Flag {
+  id        String     @id @default(cuid())
+  billId    String
+  bill      Bill       @relation(fields: [billId], references: [id], onDelete: Cascade)
+  flaggedBy String
+  flagger   User       @relation(fields: [flaggedBy], references: [id], onDelete: Cascade)
+  reason    FlagReason
+  createdAt DateTime   @default(now())
+
+  @@unique([billId, flaggedBy])
+  @@index([billId])
+}
+
+model CoverIntent {
+  id        String   @id @default(cuid())
+  billId    String
+  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([billId, userId])
+  @@index([billId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PlatformSettings {
+  id                 String   @id @default("default")
+  pausePosting       Boolean  @default(false)
+  softLaunchInvites  Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+  updatedById        String?
+  updatedBy          User?    @relation("SettingsUpdater", fields: [updatedById], references: [id])
+}
+
+model InviteCode {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  createdById  String?
+  createdBy    User?     @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  redeemedById String?   @unique
+  redeemedBy   User?     @relation("InviteRedeemer", fields: [redeemedById], references: [id], onDelete: SetNull)
+  redeemedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+model BillViewDay {
+  billId String
+  day    String
+  views  Int    @default(0)
+  bill   Bill   @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@id([billId, day])
+  @@index([day])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  action     String
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+}

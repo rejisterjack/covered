@@ -4,6 +4,144 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	--font-sans: "font", sans-serif;
-	--font-mono: "monospace", monospace;
+	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	--color-background: #000000;
+	--color-foreground: #e7e9ea;
+	--color-x-bg: #000000;
+	--color-x-elevated: #080808;
+	--color-x-hover: #16181c;
+	--color-x-border: #2f3336;
+	--color-x-text: #e7e9ea;
+	--color-x-muted: #71767b;
+	--color-x-blue: #1d9bf0;
+	--color-x-blue-hover: #1a8cd8;
+	--color-x-danger: #f4212e;
+}
+
+html,
+body {
+	min-height: 100%;
+	background: #000000;
+	color: #e7e9ea;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+	color: inherit;
+	text-decoration: none;
+}
+
+input,
+textarea,
+select,
+button {
+	font: inherit;
+}
+
+.x-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2.75rem;
+	border-radius: 9999px;
+	padding: 0.75rem 1.25rem;
+	font-size: 0.9375rem;
+	font-weight: 700;
+	transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.x-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.x-btn-primary {
+	background: #1d9bf0;
+	color: #ffffff;
+}
+
+.x-btn-primary:hover:not(:disabled) {
+	background: #1a8cd8;
+}
+
+.x-btn-outline {
+	border: 1px solid #536471;
+	background: transparent;
+	color: #e7e9ea;
+}
+
+.x-btn-outline:hover:not(:disabled) {
+	background: rgba(239, 243, 244, 0.1);
+}
+
+.x-input {
+	width: 100%;
+	min-height: 2.75rem;
+	border-radius: 0.75rem;
+	border: 1px solid #2f3336;
+	background: #000000;
+	padding: 0.75rem 1rem;
+	color: #e7e9ea;
+	outline: none;
+}
+
+textarea.x-input {
+	min-height: 5.5rem;
+	resize: vertical;
+}
+
+.x-scroll-x {
+	overflow-x: auto;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.x-scroll-x::-webkit-scrollbar {
+	display: none;
+}
+
+.x-input:focus {
+	border-color: #1d9bf0;
+	box-shadow: 0 0 0 1px #1d9bf0;
+}
+
+.x-card {
+	border: 1px solid #2f3336;
+	border-radius: 1rem;
+	background: #000000;
+}
+
+.x-divider {
+	border-color: #2f3336;
+}
+
+.x-file {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	border-radius: 0.75rem;
+	border: 1px solid #2f3336;
+	background: #000000;
+	padding: 0.75rem;
+	color: #71767b;
+	font-size: 0.8125rem;
+}
+
+.x-file::file-selector-button {
+	margin-right: 0.75rem;
+	border: 0;
+	border-radius: 9999px;
+	background: #16181c;
+	padding: 0.4rem 0.9rem;
+	color: #e7e9ea;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+/* Avoid iOS zoom on focused inputs */
+@media (max-width: 640px) {
+	.x-input,
+	.x-file {
+		font-size: 16px;
+	}
 }
