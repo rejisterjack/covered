@@ -2,9 +2,9 @@ export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
   name: "Covered",
-  fullName: "Covered / X",
-  description: "Covered from X — post a bill. Someone's got it.",
-  tagline: "Covered from X — post a bill. Someone's got it.",
+  fullName: "Covered",
+  description: "Post your bill. Someone's got it.",
+  tagline: "Post your bill. Someone's got it.",
   url: "https://covered.rejisterjack.com",
   navItems: [
     { label: "Home", href: "/app" },

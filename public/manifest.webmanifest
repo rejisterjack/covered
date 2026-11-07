@@ -1,7 +1,7 @@
 {
-  "name": "Covered from X",
+  "name": "Covered",
   "short_name": "Covered",
-  "description": "Covered from X — post a bill. Someone's got it.",
+  "description": "Post your bill. Someone's got it.",
   "start_url": "/app",
   "scope": "/",
   "display": "standalone",

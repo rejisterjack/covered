@@ -29,7 +29,7 @@ export default function LandingPage() {
             size={56}
           />
           <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#1d9bf0]">
-            Covered from X
+            Covered
           </p>
         </div>
         <div className="max-w-3xl space-y-4">

@@ -2,9 +2,15 @@
 
 **Post your bill. Someone's got it.**
 
+**Home:** [covered.rejisterjack.com](https://covered.rejisterjack.com)
+
 Mobile-first PWA where anyone posts a bill they cannot pay. Donors browse the feed, pay peer-to-peer outside the app, and land on a public leaderboard. Covered never touches money.
 
-See [vision.md](./vision.md) for product intent and [docs/LAUNCH.md](./docs/LAUNCH.md) for go-live.
+See [VISION.md](./VISION.md) for product intent and [docs/LAUNCH.md](./docs/LAUNCH.md) for go-live.
+
+## Public deploy
+
+[covered.rejisterjack.com](https://covered.rejisterjack.com) is the live Vercel + Neon soft launch. Soft-launch invites can be required via `SOFT_LAUNCH_INVITES` / Admin → Platform. Terms and Privacy are operator drafts — not counsel-reviewed. There is no demo seed data and no payment processing.
 
 ## Stack
 

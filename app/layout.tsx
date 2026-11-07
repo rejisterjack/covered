@@ -11,7 +11,7 @@ import { getSession } from "@/lib/session";
 export const metadata: Metadata = {
   title: {
     default: siteConfig.fullName,
-    template: `%s / X`,
+    template: `%s · Covered`,
   },
   description: siteConfig.description,
   applicationName: siteConfig.fullName,
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     title: siteConfig.fullName,
     description: siteConfig.description,
     url: siteConfig.url,
-    siteName: "Covered from X",
+    siteName: "Covered",
     type: "website",
     images: [
       {
